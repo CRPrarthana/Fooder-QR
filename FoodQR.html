@@ -1,0 +1,623 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Fooder-QR— Smart Food Tracker</title>
+
+  <!-- html5-qrcode CDN for QR scanning -->
+  <script src="https://unpkg.com/html5-qrcode@2.3.7/minified/html5-qrcode.min.js"></script>
+
+  <style>
+    /* Basic attractive styles - modern card UI */
+    :root{
+      --bg:#f7fff7;
+      --card:#ffffff;
+      --accent:#36b37e;
+      --muted:#6b7280;
+      --glass: rgba(255,255,255,0.85);
+      --shadow: 0 6px 20px rgba(13,24,35,0.08);
+      --radius:14px;
+    }
+    *{box-sizing:border-box;font-family:Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;}
+    body{margin:0;background:linear-gradient(180deg,#e6fff0 0%, #ffffff 100%);color:#0f172a;min-height:100vh;padding:28px;}
+    .container{max-width:1100px;margin:0 auto;}
+    header{display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;}
+    .brand{display:flex;align-items:center;gap:12px}
+    .logo{width:56px;height:56px;border-radius:12px;background:linear-gradient(135deg,#4ade80,#10b981);display:flex;align-items:center;justify-content:center;color:white;font-weight:700;font-size:20px;box-shadow:var(--shadow)}
+    h1{font-size:20px;margin:0}
+    p.lead{margin:0;color:var(--muted)}
+    .hero{display:flex;gap:20px;align-items:center;justify-content:space-between;margin-bottom:18px}
+    .controls{display:flex;gap:12px}
+    button.cta{background:var(--accent);color:white;border:0;padding:10px 16px;border-radius:10px;cursor:pointer;box-shadow:0 6px 18px rgba(16,185,129,0.18);font-weight:600}
+    button.ghost{background:white;border:1px solid #e6f3ea;padding:10px 14px;border-radius:10px;cursor:pointer}
+    /* layout */
+    .grid{display:grid;grid-template-columns:1fr 380px;gap:20px}
+    .card{background:var(--card);padding:18px;border-radius:var(--radius);box-shadow:var(--shadow)}
+    .scan-box{height:320px;display:flex;flex-direction:column;align-items:center;justify-content:center;border-radius:12px;background:linear-gradient(180deg,#ffffff 0%, #f1ffef 100%);border:1px dashed #d1f3dc}
+    .muted{color:var(--muted);font-size:13px}
+    form .row{display:flex;gap:10px;align-items:center;margin-top:10px}
+    input,select{padding:10px;border-radius:10px;border:1px solid #e6eef0;font-size:15px;width:100%}
+    label{font-size:13px;color:var(--muted);display:block;margin-bottom:6px}
+    .uploader{display:flex;gap:8px;align-items:center}
+    .thumb{width:64px;height:64px;border-radius:8px;object-fit:cover;border:1px solid #e6f3ea}
+    .items-list{display:flex;flex-direction:column;gap:12px;margin-top:12px}
+    .item-card{display:flex;gap:12px;align-items:center;padding:12px;border-radius:12px;border:1px solid #f0f6f0}
+    .item-meta{flex:1}
+    .progress{height:10px;border-radius:8px;background:#eef6ef;overflow:hidden;margin-top:6px}
+    .prog-bar{height:100%;width:10%;background:linear-gradient(90deg,#34d399,#10b981)}
+    .badge{padding:6px 8px;border-radius:10px;font-weight:600;font-size:13px}
+    .green{background:#ecfdf5;color:#064e3b}
+    .yellow{background:#fff7ed;color:#7c2d12}
+    .red{background:#fff1f2;color:#7f1d1d}
+    .recipe-list{display:flex;flex-direction:column;gap:8px}
+    .recipe-card{padding:10px;border-radius:10px;border:1px solid #f1f5f9}
+    .footer{margin-top:18px;color:var(--muted);font-size:13px;text-align:center}
+    .small{font-size:12px;color:var(--muted)}
+    .controls .lang{padding:8px;border-radius:10px;border:1px solid #e6f3ea}
+    .flex{display:flex;align-items:center;gap:8px}
+    @media (max-width:980px){.grid{grid-template-columns:1fr;}.scan-box{height:260px}}
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <div class="brand">
+        <div class="logo">FQR</div>
+        <div>
+          <h1>Fooder-QR— Smart Food Tracke </h1>
+          <p class="lead small">Scan • Save • Cook • Waste Less</p>
+        </div>
+      </div>
+
+      <div class="controls">
+        <select id="langSelect" class="lang">
+          <option value="en-IN">English</option>
+          <option value="hi-IN">Hindi (हिन्दी)</option>
+          <option value="kn-IN" selected>Kannada (ಕನ್ನಡ)</option>
+          <option value="ta-IN">Tamil (தமிழ்)</option>
+        </select>
+        <button id="notifyPermBtn" class="ghost small">Enable Reminders</button>
+        <button id="clearAll" class="ghost small">Clear All</button>
+      </div>
+    </header>
+
+    <div class="hero">
+      <div>
+        <h2 style="margin:0">Keep fruits & veg fresh — simply</h2>
+        <p class="muted">Scan the QR sticker on your produce, add details, get expiry estimates, reminders and recipes in regional languages.</p>
+      </div>
+      <div>
+        <button id="openScan" class="cta">📷 Scan QR</button>
+      </div>
+    </div>
+
+    <div class="grid">
+      <!-- Left: Scanner + Form + Dashboard -->
+      <div>
+        <div class="card">
+          <div style="display:flex;gap:12px;align-items:center;justify-content:space-between">
+            <div><strong>Scan QR or Add Item</strong><div class="small muted">Scan sticker to open add form</div></div>
+            <div class="small muted">Local demo • no backend</div>
+          </div>
+
+          <div id="scannerArea" class="scan-box" style="margin-top:12px">
+            <div id="qr-reader" style="width:100%;max-width:520px"></div>
+            <div style="margin-top:10px;text-align:center;">
+              <div id="qrResult" class="muted">No QR scanned yet. Click <strong>Scan QR</strong> to start camera.</div>
+            </div>
+          </div>
+
+          <form id="addForm" style="margin-top:12px">
+            <div class="row">
+              <div style="flex:1">
+                <label>Item name</label>
+                <input id="itemName" placeholder="e.g., Tomato / ಟೊಮೇಟೋ" />
+              </div>
+              <div style="width:160px">
+                <label>Quantity (kg)</label>
+                <input id="qty" type="number" step="0.1" value="0.5" />
+              </div>
+            </div>
+
+            <div class="row" style="margin-top:8px">
+              <div style="flex:1">
+                <label>Purchase date</label>
+                <input id="pdate" type="date" />
+              </div>
+              <div style="width:160px">
+                <label>Estimate lifespan (days)</label>
+                <select id="lifespanSelect">
+                  <option value="">Auto (recommended)</option>
+                  <option value="2">2 days</option>
+                  <option value="3">3 days</option>
+                  <option value="4">4 days</option>
+                  <option value="5">5 days</option>
+                  <option value="7">7 days</option>
+                  <option value="10">10 days</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="row" style="margin-top:10px;align-items:center">
+              <div style="flex:1">
+                <label>Add photo (optional)</label>
+                <div class="uploader">
+                  <input id="photoInput" type="file" accept="image/*" />
+                  <img id="preview" class="thumb" src="" alt="" style="display:none" />
+                </div>
+              </div>
+
+              <div style="width:220px;text-align:right">
+                <label>Voice input</label>
+                <div style="display:flex;gap:8px;justify-content:flex-end">
+                  <button id="voiceBtn" type="button" class="ghost">🎙️ Speak</button>
+                  <button id="saveBtn" type="button" class="cta">Save Item</button>
+                </div>
+              </div>
+            </div>
+          </form>
+
+          <div style="margin-top:14px;">
+            <strong>Upcoming Reminders</strong>
+            <div id="reminderArea" class="small muted" style="margin-top:6px">No reminders yet.</div>
+          </div>
+        </div>
+
+        <div class="card" style="margin-top:14px">
+          <div style="display:flex;justify-content:space-between;align-items:center">
+            <strong>Stored Items</strong>
+            <div class="small muted">Manage your produce</div>
+          </div>
+          <div id="itemsList" class="items-list" style="margin-top:12px">
+            <!-- dynamic -->
+          </div>
+        </div>
+      </div>
+
+      <!-- Right: Sidebar for Recipe suggestions and Stats -->
+      <div>
+        <div class="card">
+          <strong>Recipe Suggestions</strong>
+          <p class="small muted" style="margin-top:6px">Choose an item and click "Get Recipes".</p>
+
+          <div id="recipeBox" style="margin-top:12px">
+            <div class="muted">Select an item to see suggested recipes</div>
+          </div>
+        </div>
+
+        <div class="card" style="margin-top:12px">
+          <div style="display:flex;justify-content:space-between;align-items:center">
+            <strong>Quick Stats</strong>
+            <div class="small muted">Your household</div>
+          </div>
+          <div style="margin-top:10px">
+            <div class="small muted">Total items tracked</div>
+            <div id="statCount" style="font-size:18px;margin-top:6px">0</div>
+
+            <div style="margin-top:12px" class="small muted">Waste saved (estimated)</div>
+            <div id="statSaved" style="font-size:18px;margin-top:6px">0 kg</div>
+          </div>
+        </div>
+
+        <div class="card" style="margin-top:12px">
+          <strong>How expiry is estimated</strong>
+          <p class="small muted" style="margin-top:6px">We use typical shelf-life guides for fruits and vegetables. You can override it when adding.</p>
+          <div style="margin-top:8px" class="small muted">
+            <ul>
+              <li>Tomato: 5 days</li>
+              <li>Banana: 3 days</li>
+              <li>Spinach: 3 days</li>
+              <li>Potato: 14 days</li>
+              <li>Apple: 10 days</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="footer">Made for hackathon • Local demo • Data saved to your browser.</div>
+  </div>
+
+<script>
+/* ---------------------------
+  App data & utilities
+----------------------------*/
+const LS_KEY = 'fmf_items_v1';
+const lifespanDefaults = {
+  tomato:5, ಟೊಮೇಟೋ:5, tomatoe:5,
+  banana:3, ಬಾಳೆ:3,
+  spinach:3, spinachleaf:3, spinach_leaves:3, spinach_leaf:3, ಸೊಬೆ:3,
+  potato:14, ಆಲೂಗಡ್ಡೆ:14, potatoe:14,
+  apple:10, ಸೇಬು:10,
+  carrot:8, ಕ್ಯಾರೆಟ್:8,
+  onion:21, ಈರುಳ್ಳಿ:21,
+  cucumber:7, വെള്ളരി:7, ಕಾಳು:7
+};
+
+// a small recipe database (static) - expandable
+const recipeDB = {
+  tomato: [
+    {title:"Tomato Curry", steps:["Chop tomatoes","Sauté onion","Add tomatoes & spices","Simmer 10 mins"]},
+    {title:"Tomato Chutney", steps:["Roast tomatoes","Blend with spices","Serve"]},
+  ],
+  banana: [
+    {title:"Banana Pancakes", steps:["Mash bananas","Mix flour & eggs","Pan fry batter"]},
+    {title:"Banana Smoothie", steps:["Blend banana with milk/honey","Serve cold"]}
+  ],
+  spinach: [
+    {title:"Spinach Curry", steps:["Blanch spinach","Blend with spices","Cook with tempering"]},
+    {title:"Palak Dal", steps:["Cook dal","Add chopped spinach","Simmer 5 mins"]}
+  ],
+  potato: [
+    {title:"Aloo Fry", steps:["Boil potatoes","Slice & stir fry with spices"]},
+    {title:"Aloo Curry", steps:["Fry onions","Add potatoes & masalas","Simmer until cooked"]}
+  ],
+  apple: [
+    {title:"Apple Compote", steps:["Chop apples","Cook with sugar & cinnamon"]},
+    {title:"Baked Apple", steps:["Core apples","Fill with nuts & bake"]},
+  ]
+};
+
+function saveItems(items){ localStorage.setItem(LS_KEY, JSON.stringify(items)); }
+function loadItems(){ try{ return JSON.parse(localStorage.getItem(LS_KEY))||[] }catch(e){return []} }
+function daysBetween(d1,d2){ return Math.round((d2 - d1) / (1000*60*60*24)); }
+
+/* ---------------------------
+  UI Elements
+----------------------------*/
+const qrReaderElement = document.getElementById('qr-reader');
+const qrResultEl = document.getElementById('qrResult');
+const openScanBtn = document.getElementById('openScan');
+const addForm = document.getElementById('addForm');
+const itemNameInput = document.getElementById('itemName');
+const pdateInput = document.getElementById('pdate');
+const qtyInput = document.getElementById('qty');
+const lifespanSelect = document.getElementById('lifespanSelect');
+const photoInput = document.getElementById('photoInput');
+const previewImg = document.getElementById('preview');
+const saveBtn = document.getElementById('saveBtn');
+const itemsList = document.getElementById('itemsList');
+const recipeBox = document.getElementById('recipeBox');
+const statCount = document.getElementById('statCount');
+const statSaved = document.getElementById('statSaved');
+const reminderArea = document.getElementById('reminderArea');
+const notifyPermBtn = document.getElementById('notifyPermBtn');
+const clearAllBtn = document.getElementById('clearAll');
+const voiceBtn = document.getElementById('voiceBtn');
+const langSelect = document.getElementById('langSelect');
+
+/* ---------------------------
+  QR Scanning (html5-qrcode)
+----------------------------*/
+let html5QrCode = null;
+let scanning = false;
+
+openScanBtn.addEventListener('click', () => {
+  startScanning();
+});
+
+function startScanning(){
+  if(scanning){ stopScanning(); return; }
+  const config = { fps: 10, qrbox: {width: 280, height: 180} };
+
+  html5QrCode = new Html5Qrcode("qr-reader");
+  Html5Qrcode.getCameras().then(cameras => {
+    const cameraId = cameras && cameras.length ? cameras[0].id : null;
+    html5QrCode.start(cameraId, config, qrSuccess, qrError)
+      .catch(err => {
+        qrResultEl.innerText = "Camera error: " + err;
+      });
+    scanning = true;
+    openScanBtn.innerText = "⏹️ Stop Scan";
+  }).catch(err=>{
+    qrResultEl.innerText = "No camera available.";
+  });
+}
+
+function stopScanning(){
+  if(!html5QrCode) return;
+  html5QrCode.stop().then(()=>{ html5QrCode.clear(); scanning=false; openScanBtn.innerText="📷 Scan QR"; qrResultEl.innerText="Scan stopped."}).catch(()=>{});
+}
+
+function qrSuccess(decodedText, decodedResult){
+  // When a QR is scanned, we open form pre-filled if content has expected pattern.
+  // Assume sticker contains nothing; we just open form and set qrResult text.
+  qrResultEl.innerHTML = `Scanned: <strong>${escapeHtml(decodedText)}</strong>`;
+  // If decodedText is JSON like {"item":"Tomato"}, try to prefill
+  try{
+    const maybe = JSON.parse(decodedText);
+    if(maybe.item) itemNameInput.value = maybe.item;
+    if(maybe.date) pdateInput.value = maybe.date;
+    if(maybe.qty) qtyInput.value = maybe.qty;
+  }catch(e){
+    // otherwise treat the decoded text as item name
+    if(decodedText && decodedText.trim().length<40) itemNameInput.value = decodedText.trim();
+  }
+  // stop scanning to let user edit and save
+  stopScanning();
+  // set purchase date to today if empty
+  if(!pdateInput.value) pdateInput.value = (new Date()).toISOString().slice(0,10);
+}
+
+function qrError(err){
+  // ignore minor errors
+}
+
+/* ---------------------------
+  Image preview
+----------------------------*/
+photoInput.addEventListener('change', (e)=>{
+  const f = e.target.files[0];
+  if(!f){ previewImg.style.display='none'; previewImg.src=''; return; }
+  const reader = new FileReader();
+  reader.onload = ()=>{ previewImg.src = reader.result; previewImg.style.display='block'; }
+  reader.readAsDataURL(f);
+});
+
+/* ---------------------------
+  Voice Input (Web Speech API)
+----------------------------*/
+let recognition = null;
+function initSpeech(){
+  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if(!SpeechRecognition) {
+    voiceBtn.disabled = true;
+    voiceBtn.innerText = 'Not supported';
+    return;
+  }
+  recognition = new SpeechRecognition();
+  recognition.lang = langSelect.value || 'kn-IN';
+  recognition.interimResults = false;
+  recognition.maxAlternatives = 1;
+  recognition.onresult = (ev)=>{
+    const txt = ev.results[0][0].transcript;
+    itemNameInput.value = txt;
+  };
+  recognition.onerror = (ev)=>{
+    console.log('speech error', ev);
+  };
+}
+initSpeech();
+
+langSelect.addEventListener('change', ()=>{
+  if(recognition) recognition.lang = langSelect.value;
+});
+
+voiceBtn.addEventListener('click', ()=>{
+  if(!recognition) return alert('Speech API not supported in this browser.');
+  recognition.lang = langSelect.value;
+  recognition.start();
+});
+
+/* ---------------------------
+  Save item
+----------------------------*/
+saveBtn.addEventListener('click', ()=>{
+  const name = itemNameInput.value.trim();
+  if(!name) return alert('Please enter item name (or use voice / QR).');
+  const qty = parseFloat(qtyInput.value) || 0.5;
+  const dateStr = pdateInput.value || (new Date()).toISOString().slice(0,10);
+  const manualLifespan = parseInt(lifespanSelect.value) || null;
+
+  // prepare photo
+  const file = photoInput.files[0];
+  if(file){
+    const reader = new FileReader();
+    reader.onload = ()=>{
+      const dataUrl = reader.result;
+      persistItem(name, qty, dateStr, manualLifespan, dataUrl);
+    };
+    reader.readAsDataURL(file);
+  } else {
+    persistItem(name, qty, dateStr, manualLifespan, null);
+  }
+});
+
+function persistItem(name, qty, dateStr, manualLifespan, photoData){
+  const items = loadItems();
+  const created = new Date().toISOString();
+  const id = 'itm_' + Date.now();
+  const key = name.toLowerCase();
+  // determine lifespan days: manual -> default -> general default 5
+  let days = manualLifespan || lifespanDefaults[key] || 5;
+  // try to find by fuzzy matching keywords in name
+  for(const k in lifespanDefaults){
+    if(name.toLowerCase().includes(k)) { days = manualLifespan || lifespanDefaults[k]; break; }
+  }
+  const purchaseDate = new Date(dateStr + 'T00:00:00');
+  const expiryDate = new Date(purchaseDate.getTime() + days*24*60*60*1000);
+  items.push({id,name,qty,purchaseDate:purchaseDate.toISOString(),expiryDate:expiryDate.toISOString(),lifespanDays:days,photo:photoData,created});
+  saveItems(items);
+  renderItems();
+  // clear form
+  itemNameInput.value=''; qtyInput.value='0.5'; lifespanSelect.value=''; photoInput.value=''; previewImg.style.display='none';
+  // add quick toast
+  qrResultEl.innerHTML = `Saved <strong>${escapeHtml(name)}</strong>. Expires on ${expiryDate.toISOString().slice(0,10)}`;
+}
+
+/* ---------------------------
+  Render items & recipes
+----------------------------*/
+function renderItems(){
+  const items = loadItems();
+  itemsList.innerHTML = '';
+  if(!items.length){ itemsList.innerHTML = '<div class="muted small">No items tracked yet — scan a sticker or add one.</div>'; }
+  let savedEst = 0;
+  items.forEach(it=>{
+    const exp = new Date(it.expiryDate);
+    const purchase = new Date(it.purchaseDate);
+    const totalDays = it.lifespanDays || daysBetween(purchase,exp) || 5;
+    const daysLeft = daysBetween(new Date(), exp);
+    const eatenPercent = Math.max(0, Math.min(100, Math.round((1 - (daysLeft/totalDays)) * 100)));
+    const colorClass = daysLeft>3 ? 'green' : (daysLeft>0 ? 'yellow' : 'red');
+    if(daysLeft>0) savedEst += (it.qty * 0.2); // naive saved estimation
+    const card = document.createElement('div'); card.className='item-card';
+    const img = document.createElement('img'); img.className='thumb'; img.src = it.photo || ('data:image/svg+xml;utf8,' + encodeURIComponent(defaultThumbSvg(it.name)));
+    const meta = document.createElement('div'); meta.className='item-meta';
+    meta.innerHTML = `<div style="display:flex;justify-content:space-between;align-items:center"><div><strong>${escapeHtml(it.name)}</strong><div class="small muted">Bought: ${it.purchaseDate.slice(0,10)}</div></div>
+      <div style="text-align:right">
+        <div class="badge ${colorClass}">${daysLeft>0? (daysLeft+'d left') : 'Expired'}</div>
+        <div class="small muted" style="margin-top:6px">Qty: ${it.qty} kg</div>
+      </div></div>
+      <div class="progress"><div class="prog-bar" style="width:${Math.max(6,eatenPercent)}%"></div></div>
+    `;
+    const actions = document.createElement('div'); actions.style.display='flex'; actions.style.flexDirection='column'; actions.style.gap='8px';
+    const recBtn = document.createElement('button'); recBtn.className='ghost small'; recBtn.innerText='Get Recipes';
+    recBtn.addEventListener('click', ()=> showRecipesFor(it.name));
+    const doneBtn = document.createElement('button'); doneBtn.className='cta small'; doneBtn.innerText='Mark Used';
+    doneBtn.addEventListener('click', ()=> { removeItem(it.id); });
+    actions.appendChild(recBtn); actions.appendChild(doneBtn);
+
+    card.appendChild(img); card.appendChild(meta); card.appendChild(actions);
+    itemsList.appendChild(card);
+  });
+  statCount.innerText = items.length;
+  statSaved.innerText = (Math.round(savedEst*10)/10) + ' kg';
+  updateReminders();
+}
+
+/* ---------------------------
+  Default SVG thumb
+----------------------------*/
+function defaultThumbSvg(name){
+  const txt = escapeHtml(name.slice(0,2).toUpperCase());
+  const bg = '#e6fff6';
+  return `<svg xmlns='http://www.w3.org/2000/svg' width='120' height='120'><rect width='100%' height='100%' rx='12' fill='${bg}' /><text x='50%' y='55%' dominant-baseline='middle' text-anchor='middle' font-family='sans-serif' font-size='36' fill='#06703a'>${txt}</text></svg>`;
+}
+
+/* ---------------------------
+  Remove item (used)
+----------------------------*/
+function removeItem(id){
+  let items = loadItems();
+  items = items.filter(i=>i.id!==id);
+  saveItems(items);
+  renderItems();
+}
+
+/* ---------------------------
+  Show recipes
+----------------------------*/
+function showRecipesFor(name){
+  recipeBox.innerHTML = '';
+  const key = name.toLowerCase();
+  // find best matching key in recipeDB by checking substrings
+  let foundKey = null;
+  for(const k in recipeDB){
+    if(key.includes(k)){ foundKey = k; break; }
+  }
+  if(!foundKey){
+    // fallback: match by common name words
+    for(const k in recipeDB){
+      if(name.toLowerCase().includes(k)) { foundKey = k; break; }
+    }
+  }
+  if(!foundKey){
+    recipeBox.innerHTML = `<div class="muted">No recipes found for "${escapeHtml(name)}". Try generic suggestions like stir-fry or soup.</div>`;
+    return;
+  }
+  const recs = recipeDB[foundKey];
+  const wrapper = document.createElement('div'); wrapper.className='recipe-list';
+  recs.forEach(r=>{
+    const card = document.createElement('div'); card.className='recipe-card';
+    card.innerHTML = `<strong>${escapeHtml(r.title)}</strong><div class="small muted" style="margin-top:6px">Ingredients: based on ${escapeHtml(foundKey)}</div>
+      <div style="margin-top:8px">${r.steps.map(s=>`<div>• ${escapeHtml(s)}</div>`).join('')}</div>
+      <div style="margin-top:8px"><button class="cta small" onclick="speakRecipe('${escapeJsString(r.title)}','${escapeJsString(r.steps.join('. '))}')">🔊 Read</button></div>
+    `;
+    wrapper.appendChild(card);
+  });
+  recipeBox.appendChild(wrapper);
+}
+
+/* ---------------------------
+  Reminders & Notifications
+----------------------------*/
+function updateReminders(){
+  const items = loadItems();
+  const soon = items.filter(it => {
+    const exp = new Date(it.expiryDate);
+    const daysLeft = daysBetween(new Date(), exp);
+    return daysLeft <= 3; // due soon
+  });
+  if(soon.length===0){ reminderArea.innerHTML = 'No items near expiry.'; return; }
+  reminderArea.innerHTML = soon.map(s => `<div><strong>${escapeHtml(s.name)}</strong> — expires ${s.expiryDate.slice(0,10)}</div>`).join('');
+}
+
+/* periodic check every minute (demo: every 30s) */
+setInterval(()=>{
+  const items = loadItems();
+  const due = items.filter(it => {
+    const exp = new Date(it.expiryDate);
+    const daysLeft = daysBetween(new Date(), exp);
+    return daysLeft <= 2;
+  });
+  if(due.length){
+    const names = due.map(d=>d.name).slice(0,3).join(', ');
+    // in-app toast
+    qrResultEl.innerHTML = `Reminder: Use ${escapeHtml(names)} soon!`;
+    // browser notification
+    if(notificationEnabled) {
+      const title = 'Forget-Me-Not Reminder';
+      const body = `Use ${names} before they spoil.`;
+      new Notification(title, { body });
+    }
+  }
+  renderItems();
+}, 30000); // 30 seconds for demo; you can increase to 1 hour in production
+
+/* Notification permission */
+let notificationEnabled = false;
+notifyPermBtn.addEventListener('click', ()=> {
+  if(!('Notification' in window)) return alert('Notifications not supported.');
+  Notification.requestPermission().then(perm=>{
+    notificationEnabled = (perm === 'granted');
+    notifyPermBtn.innerText = notificationEnabled ? 'Reminders Enabled' : 'Enable Reminders';
+  });
+});
+
+/* Clear all items */
+clearAllBtn.addEventListener('click', ()=>{
+  if(confirm('Clear all tracked items?')){ localStorage.removeItem(LS_KEY); renderItems(); }
+});
+
+/* ---------------------------
+  Helpers & boot
+----------------------------*/
+function escapeHtml(s){ if(!s) return ''; return s.replace(/[&<>'"]/g, c=>({ '&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;' })[c]); }
+function escapeJsString(s){ return s.replace(/'/g,"\\'").replace(/"/g,'\\"'); }
+
+/* speak recipe (text-to-speech) */
+function speakRecipe(title, steps){
+  const utter = new SpeechSynthesisUtterance(`${title}. Steps: ${steps}`);
+  // try set language from selector
+  utter.lang = langSelect.value || 'kn-IN';
+  speechSynthesis.speak(utter);
+}
+
+/* quick initialization */
+(function init(){
+  // set purchase date default to today
+  pdateInput.value = (new Date()).toISOString().slice(0,10);
+  renderItems();
+  // pre-init speech if available
+  initSpeech();
+})();
+
+/* expose for inline onclick */
+window.speakRecipe = speakRecipe;
+
+/* ---------------------------
+  Small UX: allow dropping a QR code text via paste
+----------------------------*/
+window.addEventListener('paste', (e)=>{
+  const text = e.clipboardData.getData('text');
+  if(text && text.trim().length>0){
+    // prefill item name if plausible
+    itemNameInput.value = text.trim();
+    qrResultEl.innerHTML = `Pasted: <strong>${escapeHtml(text.trim())}</strong>`;
+  }
+});
+</script>
+</body>
+</html>
